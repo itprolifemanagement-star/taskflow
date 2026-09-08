@@ -1,0 +1,48 @@
+name: Build Android APK
+
+# Runs automatically on every push to main, and can also be triggered
+# manually from the Actions tab in GitHub ("Run workflow" button).
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed so this workflow can create a GitHub Release
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taskflow-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publish a GitHub Release with the APK attached
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Build #${{ github.run_number }}
+          body: |
+            Automated build from commit ${{ github.sha }}.
+            Download app-release.apk below and install it on your phone.
+          files: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
